@@ -1,0 +1,336 @@
+\documentclass{ametsocV6.1} %%article}
+%\documentclass{ametsocV5}
+%\documentclass{article}
+%\usepackage{amssymb}
+%
+%\documentclass[letter]{article}
+%\documentclass[a4paper]{article}
+%\usepackage[margin=0.75in]{geometry} % full-width
+%\usepackage{amsmath,amsfonts,amssymb}
+%\usepackage{mathptmx}%{times}
+%\usepackage{newtxtext}
+%\usepackage{newtxmath}
+%\usepackage{geometry}
+%\usepackage{graphicx}
+%\usepackage{natbib}
+%\usepackage{lineno}
+%\linenumbers
+%\linespread{1.5}
+\usepackage{changes}
+%\geometry{margin=0.5in}
+\title{A Machine-Learning Approach to Mitigate Ground Clutter in the GPM Combined Radar-Radiometer Algorithm (CORRA) Precipitation Estimates}
+
+%\author{Mircea Grecu, Gerald M. Heysmfield, Stephen Nicholls, Steven Lang, \& William S. Olson}
+
+\authors{Mircea Grecu,\aff{a,b}\correspondingauthor{Mircea Grecu, email:mircea.grecu-1@nasa.gov} 
+Gerald M. Heymsfield,\aff{a} 
+Stephen Nicholls,\aff{a,c} 
+Stephen Lang,\aff{a,c} 
+William S. Olson,\aff{a,d} 
+}
+
+\affiliation{\aff{a}{NASA Goddard Space Flight Center, Greenbelt, Maryland}\\
+\aff{b}{Morgan State University, Baltimore, MD}\\
+\aff{c}{Science Systems and Applications, Inc., Greenbelt, Maryland}\\
+\aff{d}{University of Maryland, Baltimore County, Baltimore,Maryland}
+}
+
+\abstract{
+    In this study, a machine-learning based methodology is developed to mitigate the effects of ground clutter on precipitation estimates from the Global Precipitation Mission Combined Radar-Radiometer Algorithm. Ground clutter can corrupt and obscure precipitation echo in radar observations, leading to inaccuracies in estimates. To improve upon the previous work, this study introduces a more general ML approach that enables a more systematic investigation and a better understanding of uncertainties in clutter mitigation. To allow for a less restrictive exploration of conditional relations between precipitation above the lowest clutter free bin and surface precipitation, reflectivity observations above the clutter are included in a fixed-size set of predictors along with the precipitation type, surface type, and freezing level to estimate surface precipitation rates, and several ML-based estimation methods are investigated.  A Gradient Boosting Model (GBM) is ultimately identified as the best candidate for systematic evaluations, as it is computationally fast to train and apply while effective in applications. 
+    The GBM appears effective in providing unbiased estimates; however, it is not much more effective in reducing random errors in the estimates relative to a simple bias correction approach. The fact that other ML approaches such as the k nearest neighbor method, the random forest method, and feed forward neural network approach showed similar performance in initial evaluations suggests that the inability of the GBM to achieve much more than bias removal is the result of indeterminacy in the data rather than limitations in the ML approach.}    
+%In this study, a machine-learning (ML) based methodology is developed to mitigate the effects of ground clutter on precipitation estimates from the Global Precipitation Mission (GPM) Combined  Radar-Radiometer Algorithm (CORRA). Ground clutter can corrupt and obscure precipitation echo in radar observations, leading to inaccuracies in estimates. Previous work addressed multiple issues regarding the impact of ground clutter effects on precipitation estimates from the GPM Dual Frequency Precipitation Radar (DPR). However, some aspects regarding the benefits and limitations of statistical methods to mitigate clutter in DPR reflectivity observations were not fully explored. Specifically, previous work made use of explicitly defined features (such as the vertical gradient of precipitation rate) that while effective, offers limited insight into whether better performance may be achieved through more objective and general approaches. To improve upon the previous work, this study introduces a more general ML approach that enables a more systematic investigation and a better understanding of uncertainties in clutter mitigation. To allow for a less restrictive exploration of conditional relations between precipitation above the lowest clutter free bin and surface precipitation, reflectivity observations above the clutter are included in a fixed-size set of predictors along with the precipitation type, surface type, and freezing level to estimate surface precipitation rates, and several ML-based estimation methods are investigated.  A Gradient Boosting Model (GBM) is ultimately identified as the best candidate for systematic evaluations, as it is computationally fast to train and apply while effective in applications. 
+%A conditional analysis of the relationships between precipitation rates eight radar bins above the earths ellipsoid and higher bins aloft indicate systematic differences. Based on this analysis, the development and evaluation of the GBM are performed. Specifically, using the lowest clutter free bin precipitation rate as a surface precipitation rate estimate results in biased estimates, and so the ability of the GBM to provide unbiased estimates is investigated. The GBM appears effective in providing unbiased estimates; however, it is not much more effective in reducing random errors in the estimates relative to a simple bias correction approach. The fact that other ML approaches such as the k nearest neighbor method, the random forest method, and feed forward neural network approach showed similar performance in initial evaluations suggests that the inability of the GBM to achieve much more than bias removal is the result of indeterminacy in the data rather than limitations in the ML approach. 
+
+
+%Training and evaluation of the ML models rely on a database constructed from near-nadir view DPR reflectivity profiles minimally affected by clutter over one year. To extend these profiles to the surface, linear interpolation is employed for profiles with a sufficiently high freezing level, while a k-nearest neighbor (k-NN) method is used for others. Despite potential errors introduced during estimation, this approach is deemed preferable to limiting clutter mitigation solely to clutter extending above 1.0 km. Evaluation over land can leverage high-quality ground radar precipitation estimates adjusted by rain gauges, while oceanic validation poses more significant challenges due to the lack of direct validation sources. Further studies are needed to assess the efficacy of these methods comprehensively.
+
+
+
+
+%\authors{Mircea Grecu\correspondingauthor{Author name, email address}\thanks{Morgan}
+% Gerald M. Heymsfield, Stephen Nicholls\thanks{SSAI}, Steven Lang\thanks{SSAI}, \& William S. Olson\thanks{UMBC}}
+ 
+%\affiliation{\aff{$^a$}NASA Goddard Space Flight Center}
+
+
+%
+%\author{Mircea Grecu, Gerald M. Heymsfield, Stephen Nicholls, Stephen Lang, \and William S. Olson}
+
+\begin{document}
+
+\maketitle
+\statement
+{Ground clutter can obscure and corrupt the precipitation echo in the reflectivity observations by space borne radar, leading to inaccuracies and biases the surface precipitation estimates. In this study, a machine learning approach is developed to mitigate the effects of ground clutter on precipitation estimates from the Global Precipitation Mission (GPM) Combined Radar-Radiometer Algorithm (CORRA).  The approach is shown to be effective in removing the biases associated with the simplest ground clutter mitigation approach and reducing the random errors associated with more complex climatologically based bias-removal approaches.}
+%a deep learning model was developed to fill in missing data across these regions using surface radar and atmospheric state variables. The model accurately predicts reflectivity, with significant improvements over conventional methods.
+\section{Introduction}
+
+In radar meteorology, the echo originating in power emitted by the radar and reflected by the ground is called ground clutter. Ground clutter has as negative impact on observations collected by Dual Frequency Precipitation Radar (DPR) of the NASA Global Precipitation Measurement (GPM) mission \citep{gpm2017}, as it may obscure or corrupt radar signal associated with precipitation. The extent of ground clutter in space-borne radar observations increases with incidence angle \citep{kubota2016}. Shown in Fig. \ref{fig:figObsZ} is a single scan representation of the Ku-band reflectivity observed by the DPR from GPM orbit 50853 on 9 February 2023. The enhanced reflectivity values at ranges close to (and larger than) 170 are contaminated by ground clutter. The lowest bins that are deemed clutter-free by the DPR algorithm \citep{iguchi_atbd} are indicated by the black line in the plot. As apparent from the figure, the number of bins affected by clutter is quite significant for observations near the edge of the swath. Relative to the sea-level, 20 range bins (bin width of 125 m) affected by clutter at the maximum scan incidence angle of 17$^{\circ}$ are equivalent to a clutter height of about 2.4 km at the edge of the DPR swath.
+While the assumption that the precipitation flux does not change significantly with height may be reasonable in some situations, it is likely to result in significant biases in the surface precipitation estimates in weather systems with freezing levels close to the ground. This is because ice processes such as riming and depositional growth can result in significant flux changes.
+
+
+\begin{figure}[h]
+        \centering
+        \includegraphics[width=0.95\textwidth]{fig01.png}
+        \caption{Cross-track section of observed Ku-band reflectivity field.
+        Range bin spacing is 125 m and the black line indicates the lowest clutter-free bins. Bin 175 corresponds to the Earth ellipsoid.}
+        \label{fig:figObsZ}
+\end{figure}
+    
+To mitigate such biases, statistical correction methodologies, akin to those used to estimate the surface reflectivity from ground-based precipitation radar observations, may be used. Specifically, in ground-based radar, as the height of horizontally scanning radar beams increase with range, the lowest-elevation reflectivity observations may be significantly elevated above the ground at large ranges.  For example, the beam center height is about 1500 m for an elevation angle of 0.5$^\circ$ and a range of 100.0 km \citep{beamwidth2023}. Traditionally, to estimate the surface reflectivity from the lowest elevation angle reflectivity observations of ground radars, short range reflectivity observations from multiple elevation angle scans are used to derive statistical relationships between surface reflectivities and reflectivities aloft \citep{koistinen1991}. A similar approach can be applied to mitigate ground clutter in space-borne radar observations, with the difference being that the relationships between surface precipitation rates and precipitation rates aloft are derived from near-nadir space-borne radar observations and associated precipitation estimates that are minimally impacted by ground clutter.  This approach has already been applied by \cite{hirose2021} to refine the GPM DPR surface precipitation estimates.
+
+In this study, we present a machine learning (ML) based methodology \citep{geron2022} to investigate and mitigate ground clutter effects on precipitation estimates from the GPM combined radar-radiometer algorithm (CORRA). While conceptually similar to the approach of \cite{hirose2021}, our methodology is different in several key aspects and provides additional insight into ground-clutter-related uncertainties in the surface precipitation estimates and the best strategies to mitigate them.  Unlike \cite{hirose2021}, we use reflectivity profile observations (rather than profiles of estimated precipitation rates) in the derivation of relationships between the precipitation rate in the lowest clutter free bin and the surface precipitation rate. The benefit of using reflectivity rather than precipitation profiles is that it enables the development of more physically consistent estimates. That is, radar profiling algorithms \citep{iguchi_atbd,grecu2016} require assumptions regarding precipitation structure in the clutter to accurately incorporate estimates of the path integrated attenuation (PIA) from the Surface Reference Technique (SRT) to correct for attenuation down to the surface. However, if the clutter mitigation technique requires precipitation estimates, it can only be applied after the radar estimation process is complete. This may result in inconsistencies between the assumptions regarding the attenuation due to precipitation in the clutter and the actual precipitation 
+estimates. While such inconsistencies may be addressed through iterative procedures, they result in a more computationally intensive retrieval process. In contrast, a clutter mitigation technique that uses reflectivity observations directly to derive relations between information above the clutter and precipitation in the clutter can be explicitly incorporated into the attenuation correction and precipitation estimation process, and this eliminates the need for iterative procedures to ensure the consistency of results.  It should be mentioned, however, that the benefit (if any) of estimating the reflectivity in the clutter is limited in deep convection, because there are large uncertainties in the attenuation correction process both above and in the clutter.  In this case, additional uncertainties caused by physical inconsistencies may not matter. Another distinction relative to \cite{hirose2021}, is that our methodology is based on ML, which is beneficial from the feature engineering  perspective \citep{zheng2018}. Specifically, machine learning models can effectively extract relevant information from the data without having to resort to the explicit identification of features (defined as numerical attributes uniquely derived through a computational procedure applied to input data), thereby reducing the need for manual feature engineering, which can be time-consuming and error-prone for human experts. For example, the precipitation gradient with respect to radar range is an intuitively-derived feature in the surface precipitation estimation approach of \cite{hirose2021}. While features that make intuitive sense are valuable, questions regarding their optimality are difficult to objectively address without tedious investigation.  From this perspective, ML procedures that do not require explicit features are worth considering.  In addition, the organization of data in a format that facilitates the development of an ML model automatically facilitates the model's evaluation.
+ 
+The paper is organized as follows.  In Section 2, we present the ML methodology used to estimate the surface precipitation rate from reflectivity observations not affected by clutter as well as additional information such as the precipitation and surface type and the zero degree isotherm height.  In Section 3, we present the results of the application of the ML methodology to the GPM CORRA precipitation estimates.  In Section 4, we offer some conclusions from the study.
+
+
+
+
+    
+\section{Methodology}
+\subsection{General considerations{\label{genConsid}}}
+    
+The simplest method to estimate the precipitation rate at a given height 
+above the sea level (and for a given precipitation type $PT$, surface type $ST$, and freezing level ($FL$)) from a precipitation rate at a higher level is to re-scale the higher level value by the ratio of the climatological mean precipitation rates at the two levels. Mathematically, this may be written as
+
+\begin{equation}
+    P_{rate}(H_1,PT,ST,FL)=P_{rate}(H_2,PT,ST,FL) \frac {<P_{rate}(H_1,PT,ST,FL)>} {<P_{rate}(H_2,PT,ST,FL)>} 
+    \label{eq:bCorr}
+\end{equation}\\
+
+\noindent where $P_{rate}$ is the precipitation rate, $H_1$ is the height where the estimate is needed, but for which no direct measurement is available, $H_2$ is lowest clutter free height ($H_2>H_1$) where a radar measurement is available, and operator $<\square>$ denotes the climatological mean over a large dataset characterized by the same freezing level, surface and precipitation type.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.95\textwidth]{fig02.png}
+    \caption{Conditional mean reflectivity and precipitation rate profiles over oceans for stratiform precipitation with various freezing level heights.}
+    \label{fig:figMeanProfOceans}
+\end{figure}
+
+While simple in form, the challenge in applying a clutter correction methodology based on Eq. (\ref{eq:bCorr}) is the derivation of the correction factors $\frac {<P_{rate}(H_1)>} {<P_{rate}(H_2)>}$ for all possible ($H_1$,$H_2$) pairs. Nevertheless, because the ground clutter depth is a function of the scanning incidence angle, estimates of the climatological correction factor derived from near-nadir reflectivity observations and precipitation estimates may be used to mitigate the clutter near the edges of the swath.  Shown in Fig. \ref{fig:figMeanProfOceans} are over-oceans conditional mean reflectivity and precipitation rate profiles from the GPM CORRA algorithm \citep{grecu2016} for stratiform precipitation with various freezing level heights. The profiles are plotted relative to the 0$^\circ$C bin to emphasize similarities rather than differences due to temperature-dependent processes. One year's worth (i.e. 2018) of DPR observations and associated GPM CORRA retrievals characterized by fewer than eight bins affected by clutter are selected and used in calculations of the mean profiles. The data are partitioned based on the freezing level height in 12 distinct subsets, with the freezing level heights of each subset within 125 m of 1.875+$k$*0.25 km with $k$ varying from 0 to 11, resulting in 12 conditional mean profiles. As shown in the figure, the mean reflectivity and the associated precipitation profiles tend to align with one another. This behaviour may be used to mitigate the impact of clutter, even in near-nadir DPR observations that are affected by clutter at relatively low altitudes that make direct precipitation rate estimation at or near the surface impossible.  Specifically, the data in Fig. \ref{fig:figMeanProfOceans} suggests that 
+
+\begin{equation}
+\frac {<P_{rate}(H_1,PT,ST,FL)>} {<P_{rate}(H_2,PT,ST,FL)>} \approx 
+\frac {<P_{rate}(H_1+dFL,PT,ST,FL+dFL)>} {<P_{rate}(H_2+dFL,PT,ST,FL+dFL)>} 
+\label{eq:invar}
+\end{equation}\\
+
+\noindent where dFL is the difference between two distinct freezing level heights (FLH). The veracity of Eq. (\ref{eq:invar}) is supported by the fact that in plots relative to the 0$^\circ$C isotherm, the conditional mean precipitation profiles in Fig. \ref{fig:figMeanProfOceans} look very similar to profiles characterized by higher FLH and extending to greater depths below the 0$^\circ$C. Here, the conditional mean precipitation rate refers to the mean precipitation rate in situations where precipitation is occurring in the LCFB (non-zero). The selection of profiles (with a maximum of eight radar bins impacted by ground clutter) results in a minimum value of $H_1$ of 1,000m (for a climatology derived from profiles with at most six bins affected by clutter).  However, one can use Eq. (\ref{eq:invar}) to approximate  $\frac {<P_{rate}(0,PT,ST,FLH)>} {<P_{rate}(H_2,PT,ST,FLH)>}$ as $\frac {<P_{rate}(1,000m,PT,ST,FLH+1,000m)>} {<P_{rate}(H_2+1,000m,PT,ST,FLH+1,000m)>}$.
+
+Shown in Fig. \ref{fig:figMeanProfLand} are conditional mean reflectivity and precipitation rate profiles from CORRA for stratiform precipitation with various freezing level heights over land. The conditional mean precipitation profiles over land exhibit more variability than over oceans. However, this may be a consequence of precipitation retrieval artifacts rather than differences in temperature-dependent physical processes.  Specifically, given that the SRT PIA estimates are noisier and less reliable over land, their impact on precipitation estimates may be less systematic, which could result in a larger spread of conditional mean estimates.  Nevertheless, Eq. (\ref{eq:invar}) is still a reasonable assumption.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.95\textwidth]{fig03.png}
+    \caption{Same as \ref{fig:figMeanProfOceans} but over land.}
+    \label{fig:figMeanProfLand}
+\end{figure}
+% how much data is used to construct those profiles?
+% one year 2018 of dataset
+The mean reflectivity profiles shown in Figs. \ref{fig:figMeanProfOceans} and \ref{fig:figMeanProfLand} are stratified by precipitation type (stratiform), freezing level and surface type only, but it is conceivable that features that further separate the relationships between the reflectivity observations and the final precipitation estimates exist.  As previously mentioned, \cite{hirose2021} use the precipitation slope to stratify the database of near-nadir precipitation supporting their precipitation refinement process.  In the current study, we also investigate the slope of the reflectivity profile below the freezing level as a feature potentially useful for predicting the surface precipitation rate from the lowest clutter free precipitation rate.  Specifically, the slope of the Ku-band reflectivity observations in the first six radar bins below the bright-band bottom \cite{iguchi_atbd} is used to stratify the observations into five categories.  The resulting mean reflectivity profiles and the associated mean precipitation profiles are shown in Fig. \ref{fig:figMeanProfOceans_strat} for three of these categories, the other two (i.e. associated with slopes with absolute values larger than 0.75dB/bin) accounting for less than 10\% of the total number of profiles. As seen in the figure, distinct mean reflectivity profiles result in distinct mean precipitation profiles.  This behavior may used to derive more accurate surface precipitation estimates than those derived from Eq. (\ref{eq:bCorr}).  However, to make effective use of the reflectivity slope and other such features, questions regarding the optimal strategy to calculate the slopes and partition them by value, especially when the ground clutter extends close to or above the freezing level, need to be addressed. As there is no obvious strategy to address such questions, we resort to a ML approach.
+
+%stephen.d.nicholls: Comment: Are six bins only necessary for your categorization? I am curious to know about this because Steve Lang's method for our LUT uses the reflectivity gradients from the 2C and 2 bins below. Do we need to reconsider using  additional bins?
+%Probably not. I chose six bins to filter out noise in this illustration, but in your approach you have ways to determine the optimal number of bins or show that whatever you use is effective.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.95\textwidth]{fig04.png}
+    \caption{Same as \ref{fig:figMeanProfOceans} but for a zero-degree bin of 144 and stratified by reflectivity slopes. The dashed lines in the left-hand side panel of the figures indicate the conditional mean reflectivity profiles at Ka-band associated with the three classes.}
+    \label{fig:figMeanProfOceans_strat}
+\end{figure}
+
+
+As previously mentioned, ML approaches do not require the explicit use of Eq. (\ref{eq:bCorr}) and the stratification of the dataset by manually designed and optimized features. Instead, they require the organization of the dataset into a design matrix and a response matrix \citep{bishop2006}. In machine learning, the concepts of design and response matrices are borrowed from regression analysis, with the design matrix representing the array of predictor variables, while the response matrix representing the array of predicted variables. Each row of the design matrix corresponds to a single observation or data point, while each column represents a different predictor variable or feature.
+
+In our study, the design matrix is an array of reflectivity observations and associated information, with each row containing the reflectivity values from a fixed-size portion of an observed profile. In addition to the reflectivity information, the zero degree bin, the position of the lowest clutter-free bin (LCFB) bin relative to the zero degree bin, the position of the surface relative to the zero degree bin, and the LCFB precipitation rate are included in the design matrix. To make the ML models computationally efficient, the number of reflectivity observations above the LCFB is set to 30. Larger numbers of reflectivity observations above the LCFB were tested, but did not result in improved results.
+
+The response matrix is one-dimensional, i.e. a vector, and it contains the associated surface precipitation rates. As explained above, the profiles in the training/evaluation dataset are characterized by at most eight bins affected by clutter. Although minimally affected by clutter, there are no surface estimates in the profiles of the training dataset, initially, and the precipitation estimates associated with the clutter-free observations need to be extended to the surface. To achieve this, for every profile with a FL height greater than 1.5 km above sea level, we regress the precipitation rate against range using the estimates associated with the lowest four clutter-free bins  and employ the resulting regression to estimate the precipitation down to the sea level (next eight bins). It should be mentioned that this extrapolation does not eliminate the need for more comprehensive methodologies (or make them superfluous), because at higher incidence angles, the ground clutter has a more significant and complex impact on profiles than the eight bins contaminated by ground-clutter in the training dataset.  When the FL is below 1.5 km, the precipitation slope may not be reliably derived, as the possible existence of ice-phase and melting precipitation in the four lowest clutter-free bins  may significantly affect the vertical distribution of precipitation rates. For such profiles, we use a k-Nearest Neighbor (k-NN) \citep{friedman2001} approach to extend the precipitation estimates into the clutter.  Specifically, given that bin $n_1$ in a profile with freezing level height $FLH_1$ is roughly characterized by the same temperature as bin $n_1-dn$ in a profile with freezing level height $FLH_2$, where $dn$ is the integer part of $\frac {FLH_2-FLH_1}{125\medspace m}$, we search for the k nearest neighbors of a profile with $FLH_1<1.5\medspace km$ among profiles with $FLH_2=FLH_1+1.0\medspace km$. The proximity is evaluated using the Euclidean distance in a system of reference relative to the zero degree bin. Then we use the $k$ nearest neighbors to fill information in the clutter region, which is possible because bins affected by clutter for profiles with a given freezing level height $FLH_1$ are clutter-free in profiles with a freezing level height greater by 1.0 km, i.e $FLH_2=FLH_1+1.0\medspace km$. While neither the slope-based extrapolation nor the reflectivity-based extension are error free, they nevertheless provide a reasonable methodology to extrapolate nearest surface precipitation rate rates in the training data down to the sea level. Alternative methodologies based on cloud-resolving models (CRMs) and ground-based radar observations are possible. However, these methodologies are not necessarily bias- or complication-free, because CRMs may exhibit microphysical biases, while the derivation of CRM simulations and the collection of ground observations representative of the global distribution of precipitation events are extremely laborious processes. While CRMs and ground observations may be able to eventually provide better (more complete) datasets to develop methodologies to mitigate ground clutter in space-borne radar observations, the approach in this study is still needed because the number of bins affected by ground-clutter is significantly greater than eight (which is the number of clutter-affected bins in the training dataset in our study).
+
+
+% how do i get the surface precipitation rates%
+The structured organization of the dataset makes it  possible to explore multiple ML models with minimum effort and select the optimal one. While ML models are generally physics-agnostic in the sense that they do not explicitly make use of physical laws, they can exploit physical causality embedded in the dataset. For example, if slopes of the reflectivity profiles above the clutter are reliable predictors of the precipitation rate at the surface relative to the lowest clutter-free precipitation rate(as suggested by Fig.\ref{fig:figMeanProfOceans_strat}), then an ML model based on the k-NN \citep{friedman2001} will be able to exploit this causality because similar reflectivity profiles in the design matrix result in similar slopes. However, potentially more accurate or computationally more efficient ML models may exist, and so in addition to the k-NN model, we also consider a Gradient Boosting (GB) model \citep{friedman2001}, and a random forest (RF) model \citep{ho1995}.  Both the GB and RF models are based on decision trees (DTs) that are built through a process that constructs a tree-like structure by recursively splitting the dataset based on feature conditions \citep{bishop2006}.  However, while the GB model starts with a weak DT and iteratively adds DTs to minimize residuals, the RF model derives an ensemble of DTs and uses their average for prediction. The k-NN and RF model implementations used in the study are based on the scikit-learn library \citep{pedregosa2011}, while the GB model is based on the efficient implementation of \cite{ke2017}. In addition to the three scikit-learn based models, we consider a neural network (NN) model \citep{deepL2016,geron2022} based on the TensorFlow library \citep{tensorflow2016}.
+
+The scikit-learn library provides a convenient interface to train and test ML models.  As such, the definition of the scikit-learn ML models requires minimal specifications. They include the number of neighbors for the k-NN model and the number of trees for the random forest model, and the number of estimators for the gradient boosting model. Similarly, the Light Gradient Boosting Model (LGBM) implementation of \cite{ke2017} requires minimal specifications.  We set the number of neighbors to 20 and use the default values for the RF and LGBM models. The TensorFlow library, on the other hand, requires a more specific definition of the model architecture.  We use a simple fully connected feed forward neural network with two hidden layers. The number of neurons is set to 32 in both hidden layers.  The activation function is the rectified linear unit (ReLU) \citep{relu2010} and the output layer is a linear layer.  The loss function is the mean squared error (MSE), and the optimizer is the Adam optimizer \citep{adam2014}. The TensorFlow model is included in the study to provide insight into how the complexity of the ML model affects performance.  Specifically, while the scikit-learn models and the LGBM are relatively simple, the NN model is more complex \citep{deepL2016} and may be able to capture more complex relationships between the reflectivities above the clutter and the surface precipitation rate.  
+
+
+Shown in Fig. \ref{fig:cluttStatsLand} is the cumulative distribution of number of bins affected by clutter for rays in the DPR's outer swath. As apparent in the figure, more than eight bins are affected by clutter for the vast majority of the DPR outer swath profiles over land, with about half of profiles characterized by more than 15 bins affected by clutter and 10\% of profiles characterized by more than 26 clutter-affected bins. The dataset of observations and precipitation profiles minimally affected by clutter and extended to sea-level, as explained above, is used to develop and test the different ML model approaches.  To simulate clutter effects,  $n_c$ bins are assumed affected by clutter, where $n_c$ is a random integer uniformly distributed between 1 and 26. The upper limit 26 was chosen based on the results shown in Fig. \ref{fig:cluttStatsLand}. While about 10\% of profiles exhibit more than 26 bins affected by clutter, a larger upper limit might result in biases in the estimation because the distribution of the number of pixels affected by clutter is not uniform. A sampling strategy consistent with the cumulative distribution function in Fig. \ref{fig:cluttStatsLand} may be used, but it would unnecessarily increase the size of the training dataset, because the sample size necessary to mitigate noise for $n_c>26$ would result in significant oversampling for $n_c\leq 26$. However, given that the LGBM and the NN models have good extrapolation capabilities, and the number of profiles with $nc>26$ is relatively small, deriving ML models for $n_c\leq 26$ and applying them for $n_c>26$ is not necessarily a poor choice. Moreover, an additional set of models trained exclusively for $n_c>26$ may be derived. However, it is beneficial to first systematically investigate the performance and behavior of ML for $nc\leq 26$.
+
+%stephen.d.nicholls: I am certainly not suggesting that you include this 10%, but I would be curious to know what types of profiles and situations this 10% may include.I haven't looked at them explicitly, but they are very likely profiles over mountains (mostly at the edges of the scans)
+
+\begin{center}
+\begin{figure}
+\includegraphics[width=0.95\textwidth]{fig05.png}\\
+%\includegraphics[width=0.75\textwidth]{}
+\caption{The cumulative distribution of number of bins affected by clutter for rays in the DPR's outer swath (defined as the portion of the swath within 12 rays from the edges) over land.}
+\label{fig:cluttStatsLand}
+\end{figure}
+\end{center}
+%%Alternative approaches such as cloud-resolving models (CRMs) or ground-observations may be used to mitigate the lack of information in the lowest 8 bins in near-nadir DPR subset exist. However, they are not complication free, as CRMs are computer intensive while not necessarily bias free, and ground-observations may incomplete or affected by various types of artifacts including ground clutter.
+%x1=[]
+%x1.extend(zmL[-1])
+%x1.extend(hL[-1][-1:])
+%x1.append(h[-1])
+%x1.append(nlev_end1-nlev_end)
+%x1.append(pRateLL[-1])
+%x1.append(pRateLL[-1]*corrFact[min(ncl+8,23),k])
+%yL.append(pRateL[-1]
+
+% Z from the first 25 above the LCFB, and their heights, the CMB precipitation at LCFB, the FL height and, number of bins in the clutter
+
+            
+To evaluate the performance of the ML models, we use a cross-validation approach.  Specifically, the DPR dataset is randomly split into a training and a testing dataset with 70\% of profiles in the training dataset and the remaining 30\% in the testing dataset.  The training dataset is used to  optimize the ML models, while the testing dataset is used to evaluate them. The evaluation is based on calculations of the correlation coefficient and bias between the predicted and observed surface precipitation rates. 
+
+
+
+
+\section{Results}
+
+The reason for considering several ML model architectures is to ensure that there is no latent information in the input data that is not properly captured.  The inclusion of multiple ML models reduces the likelihood of such a possibility, as the models are based on different statistical modeling paradigms. However, in our initial model testing, no particular ML model emerged as significantly better than the others. This outcome, which is not totally surprising, may be an indication that the relations between the surface precipitation rate and the precipitation rate at a given height above the surface depend on a multitude of factors that cannot be directly observed or do not have a clear signature in the reflectivity observations.  Nevertheless, some models are preferable to others. Specifically, the k-NN model is rather slow in applications, as it requires searches through its supporting database.  The NN model on the other hand is slow in training and prone to overfitting (i.e. it tends to produce smaller errors in training, but large biases in the evaluation process).  The LGBM and RF models have similar performances, with significantly lower computational costs associated with the LGBM model. Therefore, based on this initial testing, we choose the LGBM as the best option, and instead of exploring additional methodologies or carrying out further tuning, we focus on characterizing its performance, especially in relation to a simple estimation methodology.
+
+\subsection{Stratiform precipitation over land}
+Before describing the performance of the different ML estimation methods, we will first examine the persistence solution as a benchmark. In this simple solution, the precipitation rate at the LCFB is assumed to be the same as the surface precipitation rate. Shown in the left-hand side panel of Fig. \ref{fig:figPersistenceLand} is the correlation coefficient between the actual surface precipitation rate and the LCFB precipitation rate up to 26 bins above the surface for stratiform precipitation events over land. The vertical axis is the difference between the surface bin and the LCFB, and the horizontal axis represents the zero-degree bin. As seen in the panel, the correlation decreases with the position of the LCFB above the surface.  The bins marking a more significant correlation decrease (from above 0.8 to below 0.75) generally occur in the mixed and ice phase.  The biases associated with the LCFB-derived precipitation rate relative to the surface precipitation rate are shown in the right-hand side panel of Fig. \ref{fig:figPersistenceLand}. This type of estimation is referred to as persistence in the figure and henceforth. Similar to the correlation coefficient, the largest biases occur when the LCFB is in the ice phase.  The correlation coefficients exhibit a discontinuous distribution for profiles with a zero degree bin near 160, while the biases exhibit a relatively continuous distribution for profiles with a zero degree bin near 167. This behavior is likely a consequence of the fact that precipitation estimates in the mixed layer may be biased and noisy, and this may impact the procedure used to fill in the precipitation estimates in the eight bins affected by clutter in the database. At the same time, the DPR detection capabilities deteriorate for profiles with only snow above the clutter or if the melting layer is close to the clutter.
+
+Unlike persistence-based estimates, surface precipitation estimates based on Eq. (\ref{eq:bCorr}) would be bias-free (assuming that the precipitation climatology is bias-free in the training dataset).  However, the distribution of correlation coefficients between the estimates and the true surface values would not be different from that shown in Fig. \ref{fig:figPersistenceLand}. In other words, systematic errors are zero in estimates based on Eq. (\ref{eq:bCorr}),  but the random differences remain largely the same. An estimation superior to bias removal would also show an improvement in the distribution of the correlation coefficients and an overall reduction in the root mean squared error (RMSE).  Shown in Fig. \ref{fig:figLGBMLand} are results for the LGBM method. As seen in the figure, the correlation coefficients increase slightly relative to those shown in Fig. \ref{fig:figPersistenceLand}, while biases are almost zero.  In particular, the biases in the ice phase associated with the persistence-based estimates are largely removed.  However, the marginal (at best) improvement in the correlations between the estimated surface precipitation rates and those in the databases suggests that there is significant variability of precipitation profiles in the clutter that cannot be reliably predicted from observations in the clutter-free portion of reflectivity profile.
+
+
+%% make 2x2 table
+\begin{center}
+\begin{figure}
+\includegraphics[width=0.95\textwidth]{fig06.png}\\
+%\includegraphics[width=0.75\textwidth]{CorrCoefBiasLand_ML.png}
+\caption{Performance of a persistence-based clutter mitigation method for
+ stratiform precipitation over land. The left-hand-side panel shows the correlation coefficient of the surface precipitation rates with the precipitation rates in the LCFB (which serves as the surface estimate in the persistence-based scheme), while the right-hand-side panel shows mean differences between the surface precipitate rates and the LCFB precipitation rates.  Values are plotted for different surface vs. LCFB bin differences (vertical axis) and for different zero-degree bins (horizontal axis).}
+\label{fig:figPersistenceLand}
+\end{figure}
+\end{center}
+
+\begin{center}
+\begin{figure}
+\includegraphics[width=0.95\textwidth]{fig07.png}
+\caption{Performance of the LGBM clutter mitigation method for stratiform precipitation over land. That is, same as Fig. \ref{fig:figPersistenceLand} but for LGBM surface precipitation rate estimates instead of the persistence-based estimates.}
+\label{fig:figLGBMLand}
+\end{figure}
+\end{center}
+
+\subsection{Convective precipitation over land}
+
+Shown in Fig. \ref{fig:figPersistenceLandConv} are the distributions of correlation coefficients and biases of the persistence-based estimator of surface convective precipitation over land. Results are qualitatively similar to those obtained for stratiform precipitation over land, but with larger biases when the LCFB is in the ice phase. Some positive biases for bins in the mixed phase are also obvious. These biases are most likely the consequence of artifacts in the precipitation estimates across the melting layer due to use of different reflectivity/precipitation lookup tables. The distributions of correlation coefficients and biases associated with the LGBM for convective precipitation over land are shown in Fig. \ref{fig:figLGBMLandConv}. As seen in the figure, both the correlation coefficient and the bias improve relatively to results in Fig. \ref{fig:figPersistenceLandConv}. However, the bias distribution exhibits more variability around zero than the bias associated with stratiform precipitation over land.  This is most likely a consequence of convective precipitation exhibiting more vertical variability while being about five times less frequent than stratiform precipitation.  This makes the statistics of convective precipitation profiles in the training dataset noisier than those of stratiform precipitation.  Noise can be mitigated by extending the dataset through inclusion of DPR observations and CORRA estimates from other periods,  but it is likely that a portion of the noise is caused by artifacts due to multiple scattering and non-uniform beam filling in the precipitation estimation procedure.  From this perspective, it is beneficial that convective dataset extension be considered at the same time with or after a refinement of the convective precipitation estimation methods in CORRA.
+
+\begin{center}
+\begin{figure}
+\includegraphics[width=0.95\textwidth]{fig08.png}\\
+%\includegraphics[width=0.75\textwidth]{CorrCoefBiasLand_ML.png}
+\caption{Same as Fig. \ref{fig:figPersistenceLand} but for convective precipitation over land.}
+\label{fig:figPersistenceLandConv}
+\end{figure}
+\end{center}
+
+\begin{center}
+\begin{figure}
+\includegraphics[width=0.95\textwidth]{fig09.png}
+ \caption{Same as Fig. \ref{fig:figLGBMLand} but for convective precipitation over land.}
+\label{fig:figLGBMLandConv}
+\end{figure}
+\end{center}
+
+\subsection{Precipitation over oceans}
+
+The statistics for precipitation over oceans are qualitatively similar to those over land; see Figs. \ref{fig:figMLStOceans} and \ref{fig:figMLConvOceans}. The most significant difference is that, as suggested by Figs. \ref{fig:figMeanProfLand} and \ref{fig:figMeanProfOceans_strat}, the mean precipitation profiles have different shapes, with the oceanic precipitation generally exhibiting more systematic increases with range below the freezing level than precipitation over land. However, the LGBM clutter correction schemes exhibit behaviors similar to those over land for both stratiform and convective precipitation types. This is shown in Fig. \ref{fig:figMLStOceans} for stratiform precipitation and in Fig. \ref{fig:figMLConvOceans} for convective precipitation. The LGBM model for stratiform precipitation appears rather noisy for profiles with a zero degree bin less than 133 and an LCBF more than 4 bins above the surface, which is most likely a consequence of the relatively small number of such profiles in the training dataset. On the other hand, the LGBM model appears noisy in general for convective precipitation, which is consistent with its behavior over land. 
+
+\begin{center}
+\begin{figure}
+\includegraphics[width=0.95\textwidth]{fig10.png}\\
+%\includegraphics[width=0.75\textwidth]{CorrCoefBiasLand_ML.png}
+\caption{Performance of the LGBM clutter mitigation method for
+ stratiform precipitation over oceans.}
+\label{fig:figMLStOceans}
+\end{figure}
+\end{center}
+
+\begin{center}
+\begin{figure}
+\includegraphics[width=0.95\textwidth]{fig11.png}\\
+%\includegraphics[width=0.75\textwidth]{CorrCoefBiasLand_ML.png}
+\caption{Same as in Fig. \ref{fig:figMLStOceans} but for convective precipitation.}
+\label{fig:figMLConvOceans}
+\end{figure}
+\end{center}
+
+\subsection{Evaluation of the random errors in the correction}
+
+In the previous section, the LGBM method was shown to be effective in removing the biases associated with the persistence-based estimates. However, the random errors in the estimates were not necessarily reduced. Specifically, the correlation coefficients between LGBM surface precipitation estimates and actual surface precipitation estimates did not appear to be improved relative to those associated with the persistence-based estimates. 
+
+To investigate this quantitatively, we calculate the relative RMSE associated with both a climatological scaling correction based on Eq. (\ref{eq:bCorr}) and the LGBM estimates. The relative RMSE involves normalization by the standard deviation of the conditional surface precipitation rates.  Results are shown in Fig. \ref{fig:figRMSE}.  Here, the LGBM estimates do not exhibit RMSEs that are much smaller than those of the climatological scaling estimates. This suggests that a simple bias-removal methodology based on Eq. (\ref{eq:bCorr}) in section \ref{genConsid} is likely to be satisfactory in many respects. Nevertheless, the application of the LGBM method results in some RMSE reduction. As expected, the relative RMSEs are greater in convective than in stratiform precipitation and greater over land than over oceans. The fact that the LGBM method (which is representative of a broader class of one-dimensional clutter mitigation ML techniques) does not result in significant improvements relative to the simple bias correction provided by Eq. (\ref{eq:bCorr}) is not necessarily an indication that ML techniques offer no benefit to the clutter mitigation problem. One potential advantage of the ML techniques is that they can incorporate radiometer observations, which may yield a significant benefit in the estimation of light precipitation over oceans. Also, the correction methods explored in this study as well as in the previous work of \cite{hirose2021} make exclusive use of profile-level information.  However, modern deep learning architectures such as U-Nets \citep{siddique2021u} can readily process 3D information that may be useful for identifying the impacts of phenomena such as the wind shear on reflectivity observations and use this kind of information to more accurately predict the distribution of precipitation in the clutter. These topics will be explored in future studies.
+
+%\begin{center}
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.65\textwidth]{fig12.png}
+\caption{Relative RMSE for both the persistence and LGBM methods as a function of precipitation and surface type.}
+\label{fig:figRMSE}
+\end{center}
+\end{figure}
+%\end{center}
+
+\section{Application to GPM CORRA precipitation estimates over the Continental US in the cold season}
+To investigate the impacts of clutter mitigation on the estimation of precipitation over the Continental US (CONUS) in the cold season, we apply the LGBM method to all GPM CORRA retrievals over CONUS from 1 December 2021 to 28 February 2022. While the same type of analysis can be applied to the entire GPM domain over all seasons, given that the focus of this study is on fundamental benefits and limitations of profile level corrections rather than their climatological impact, we limit our focus to a single region and season and defer more extensive analyses to future studies. Only profiles with freezing levels below 1250 m are considered in the analysis because they are given to the largest corrections (and errors in the absence of any correction), as the LCFB may be associated with temperatures below freezing, while the surface precipitation may be rain.
+
+Shown in Fig \ref{fig:figCONUS_zMeas} is the mean Ku-band reflectivity conditioned on the observed profiles being classified as precipitating. The means are conditioned on the associated profiles being classified as precipitating. As seen in the figure, the region contaminated by clutter (characterized by large reflectivity values) increases in height with the incidence angle. Some artifacts related to the processing of the received power to mitigate sidelobe clutter \citep{kubota2016} are also apparent in the figure.  Specifically, while some enhanced echo is visible above 4.0 km, a slight reduction in the reflectivities is apparent near the center of the swath (roughly from ray 20 to ray 30).  The reduction is more significant below the average height of the LCFB (blue line in the figure), but that reduction does not directly impact the precipitation estimation, as the pixels associated with it are classified as clutter. 
+
+Shown in the top panel of Fig. \ref{fig:figCONUSPrecipCond} are the conditional near-surface precipitation estimated by CORRA and the surface precipitation predicted by the LGBM method. As seen in this figure, the clutter mitigation methodology has a significant impact on the precipitation estimates, with the impact increasing from center towards the edges of the swath.  This behavior is, most likely, a consequence of the fact that the DPR's detection capabilities deteriorate near the edges of the swath for precipitation systems with low FLH. The detected profiles are fewer but are characterized by more intense (and deeper) precipitation that results in reflectivity observations that can be reliably distinguished from clutter. This hypothesis is consistent with the distribution of the number of precipitation profiles as a function of ray, shown in the bottom panel of Fig. \ref{fig:figCONUSPrecipCond}.  However, the clutter correction technique does not result in artificial increases of intensity with distance from the center of the swath in the overall (unconditional) precipitation rate.  This point is illustrated in Fig. \ref{fig:figCONUSPrecipUncond}.  Instead, the opposite effect, i.e. a reduction of the unconditional precipitation rate estimates with distance from the swath center (consistent with the DPR precipitation detection capabilities near the edges of the swath), is apparent in the figure.  The overall impact of the LGBM surface precipitation rate estimation procedure is significant for precipitation systems with freezing level heights below 1250 m over CONUS.  This is an indication that significant precipitation growth processes such as water vapor deposition and riming occur in the clutter region.  
+
+\begin{center}
+\begin{figure}
+\includegraphics[width=0.95\textwidth]{fig13.png}
+ \caption{Mean Ku-band reflectivity conditioned on the observed profile being classified as precipitating. The blue line indicates the average height of the LCFB.}
+\label{fig:figCONUS_zMeas}
+\end{figure}
+\end{center}
+
+\begin{center}
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.95\textwidth]{fig14.png}
+ \caption{Top panel: Conditional near-surface mean precipitation rate from the CORRA and the surface mean precipitation rate predicted by the LGBM method. Bottom panel: Number of detected precipitation profiles as a function of ray index.}
+\label{fig:figCONUSPrecipCond}
+\end{center}
+\end{figure}
+\end{center}
+
+\begin{center}
+\begin{figure}
+\begin{center}
+\includegraphics[width=0.95\textwidth]{fig15.png}
+ \caption{Top panel: Near-surface mean precipitation rate from CORRA and the surface mean precipitation rate predicted by the LGBM method.}
+\label{fig:figCONUSPrecipUncond}
+\end{center}
+\end{figure}
+\end{center}
+
+\section {Summary and Conclusions}
+
+In this study, a new method for mitigating ground clutter effects in precipitation estimates derived from the GPM mission's CORRA algorithm is developed. CORRA combines data from the DPR and GMI on the GPM core satellite to estimate precipitation rate, and ground clutter is a significant problem for spaceborne radar observations, as it can obscure or corrupt the signal associated with precipitation. An approach to mitigate ground clutter using statistical relationships based on precipitation estimates from near-nadir scans has already been developed \citep{hirose2021} and applied to precipitation estimates from the DPR algorithm \citep{iguchi_atbd}. However, the study of \cite{hirose2021} did not fully explore the benefits and limitations of statistical methods to mitigate clutter in the DPR reflectivity observations. 
+
+To build upon the previous work, ML approaches are investigated to gain further insight into the uncertainties of surface precipitate rates derived from information in the portion of the reflectivity profile not affected by clutter. The ML model uses reflectivity observations, along with additional information such as precipitation type, surface type, and freezing level, to estimate the surface precipitation rate. The benefits of this approach include the use of ML models efficient at leveraging existing features and capturing complex relationships within the data without relying on explicit feature engineering, and systematic evaluation of estimates is also facilitated. Specifically, various machine learning architectures are investigated to automatically extract information from the data without resorting to subjective efforts. A preliminary evaluation suggests that no architecture offers significantly better performance than the others, and so we select the Light Gradient Boosting Model (LGBM) of \cite{ke2017} as the best candidate for further systematic evaluations, since it is computationally fast to train and deploy while effective in application.
+
+The database used in the training and evaluation of the ML models in the study is derived from one year of DPR near-nadir observed reflectivity profiles that are minimally affected by clutter. A minor deficiency of this database is that while the number of bins affected by clutter is small, one still needs to resort to statistical models and assumptions to derive the surface precipitation estimates. For profiles with a FLH greater than 1.5 km, characterized by a sufficiently large number of observations not affected by clutter in the liquid phase, we simply use linear extrapolation to estimate the surface precipitation rate.  For all the other profiles, a k-NN method is used. Specifically, the k-nearest neighbors of a profile are sought among profiles characterized by the same displacement of the LCFB relative to the zero degree bin as that of the surface bin relative to the zero degree bin for the profile in question. The proximity is evaluated using the Euclidean norm in a system of reference relative to the zero degree bin. While the estimation of surface precipitation in the database construction may introduce non-negligible random errors, and even biases, it is most likely preferable to limiting the clutter mitigation to only clutter that extends greater than 1.0 km above the surface (the extent of clutter at nadir view).  Nevertheless, this postulate needs to be evaluated in further studies. Over land, high-quality ground radar precipitation estimates adjusted by rain-gauges such as those provided by the MRMS product \citep{zhang2016} may be used for this purpose. The evaluation is likely to be more challenging over oceans, as data useful for direct validation of estimates is very limited.
+
+Estimates that use the LCFB as a proxy for surface precipitation rate are systematically different from the surface precipitation rates in the training data, prompting an assessment of the LGBM model within this context. Specifically, using the LCFB's precipitation rate as an estimate of surface precipitation rate yields biased results, and so the LGBM model's capacity to produce unbiased estimates is scrutinized. The LGBM model demonstrates effectiveness in providing unbiased estimates, yet does not appear more capable of mitigating random errors than a basic climatological scaling method. Furthermore, the performances of other machine learning techniques like k-nearest neighbor, random forest, and feedforward neural networks mirror that of the LGBM model in initial assessments, implying that the LGBM model's inability to improve upon bias removal stems from the nature of the problem rather than inherent limitations of the approach.
+
+\section{Acknowledgments.}
+This work was supported by the NASA Global Precipitation Measurement Mission (PMM) project. The authors thank Drs. Tsengdar Lee and Will McCarty (NASA Headquarters) for their support of this effort.
+
+\section{Data availability statement.}
+The version 7 of GPM DPR and CORRA data can be accessed online  (https://https://arthurhouhttps.pps.eosdis.nasa.gov/gpmdata/). %Code to simulate the synthetic observations from the CloudSat products and investigate the synergy of the instruments also may be accessed online (https://github.com/mirgrecu/synergIceRetrievals/)
+%Systematic evaluation: The data organization allows for easy model development and evaluation.
+
+%The paper details the methodology, including how the ML models are trained and evaluated. The results show that the ML-based approach offers improvements over the traditional method, particularly in terms of reducing bias and improving the correlation between estimated and actual precipitation rates. The paper also acknowledges limitations, such as the challenge of handling situations where a large number of bins are affected by clutter.
+
+%Overall, this study demonstrates the potential of Machine Learning for mitigating ground clutter effects and improving the accuracy of precipitation estimates from spaceborne radar observations.
+
+%\bibliographystyle{plainnat}
+\bibliographystyle{ametsocV6}
+\bibliography{references2}
+%%\bibliographystyle{plain}
+    
+\end{document}
